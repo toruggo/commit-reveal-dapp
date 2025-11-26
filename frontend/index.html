@@ -1,0 +1,872 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>Commit-Reveal Demo</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: radial-gradient(circle at top, #1e293b 0, #020617 50%, #000 100%);
+      color: #e5e7eb;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      min-height: 100vh;
+    }
+
+    .card {
+      background: rgba(15, 23, 42, 0.96);
+      border: 1px solid rgba(148, 163, 184, 0.3);
+      border-radius: 16px;
+      padding: 24px;
+      margin: 24px;
+      max-width: 720px;
+      width: 100%;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.45);
+    }
+
+    h1 {
+      margin-top: 0;
+      font-size: 1.6rem;
+      text-align: center;
+      color: #e2e8f0;
+    }
+
+    h2 {
+      margin-top: 24px;
+      font-size: 1.15rem;
+      color: #e5e7eb;
+      border-left: 3px solid #38bdf8;
+      padding-left: 8px;
+    }
+
+    p {
+      margin: 6px 0;
+      font-size: 0.95rem;
+    }
+
+    .row {
+      display: flex;
+      gap: 8px;
+      margin: 8px 0;
+      flex-wrap: wrap;
+    }
+
+    label {
+      font-size: 0.85rem;
+      color: #9ca3af;
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    input[type="number"],
+    input[type="text"] {
+      flex: 1;
+      padding: 8px 10px;
+      border-radius: 8px;
+      border: 1px solid #475569;
+      background: #020617;
+      color: #e5e7eb;
+      font-size: 0.95rem;
+      outline: none;
+    }
+
+    input[type="number"]::placeholder,
+    input[type="text"]::placeholder {
+      color: #6b7280;
+    }
+
+    input[readonly] {
+      background: #020617;
+      cursor: default;
+    }
+
+    .highlight {
+      box-shadow: 0 0 0 2px #22c55e;
+    }
+
+    button {
+      border: none;
+      border-radius: 999px;
+      padding: 8px 14px;
+      font-size: 0.9rem;
+      cursor: pointer;
+      background: #0ea5e9;
+      color: #0b1120;
+      font-weight: 600;
+      transition: background 0.15s ease, transform 0.08s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    button:hover {
+      background: #38bdf8;
+      transform: translateY(-1px);
+    }
+
+    button:active {
+      transform: translateY(0);
+    }
+
+    button.secondary {
+      background: #1e293b;
+      color: #e5e7eb;
+      border: 1px solid #475569;
+    }
+
+    #account,
+    #phase,
+    #countdown {
+      font-size: 0.9rem;
+      color: #9ca3af;
+    }
+
+    .status {
+      min-height: 1.2em;
+      font-size: 0.85rem;
+      color: #cbd5f5;
+    }
+
+    .status.error {
+      color: #fca5a5;
+    }
+
+    .status.success {
+      color: #4ade80;
+    }
+
+    .salt-box {
+      margin-top: 8px;
+    }
+
+    .salt-box small {
+      display: block;
+      font-size: 0.78rem;
+      color: #9ca3af;
+      margin-top: 4px;
+    }
+
+    #results-output {
+      background: #020617;
+      border-radius: 8px;
+      padding: 10px;
+      border: 1px solid #1e293b;
+      font-size: 0.85rem;
+      max-height: 260px;
+      overflow: auto;
+      white-space: pre-wrap;
+    }
+
+    .top-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+      flex-wrap: wrap;
+    }
+
+    .top-info {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .pill {
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 0.8rem;
+      background: #0f172a;
+      border: 1px solid #334155;
+      color: #e5e7eb;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Commit-Reveal na Sepolia</h1>
+
+    <div class="top-bar">
+      <div class="top-info">
+        <p id="account">Conta: (não conectada)</p>
+        <p id="phase">Fase: -</p>
+        <p id="countdown">Tempo restante: -</p>
+      </div>
+      <button id="connect-btn">Conectar MetaMask</button>
+    </div>
+
+    <!-- NOVO: seleção de contrato -->
+    <h2>Contrato da votação</h2>
+    <div class="row">
+      <div style="flex: 1;">
+        <label for="contract-address">Endereço do contrato</label>
+        <input
+          id="contract-address"
+          type="text"
+          placeholder="0x... endereço do CommitReveal na Sepolia"
+        />
+      </div>
+      <div>
+        <label>&nbsp;</label>
+        <button id="load-contract-btn" class="secondary">Carregar contrato</button>
+      </div>
+    </div>
+    <p id="contract-status" class="status"></p>
+
+    <h2>Commit</h2>
+    <p class="pill">Etapa 1 — registrar o voto de forma oculta (hash)</p>
+    <div class="row">
+      <div style="flex: 1;">
+        <label for="commit-choice">Seu voto</label>
+        <input id="commit-choice" type="number" min="1" placeholder="Ex.: 1, 2 ou 3" />
+      </div>
+      <div>
+        <label>&nbsp;</label>
+        <button id="commit-btn">Enviar Commit</button>
+      </div>
+    </div>
+    <p id="commit-status" class="status"></p>
+
+    <h2>Reveal</h2>
+    <p class="pill">Etapa 2 — revelar voto e salt para validar o commit</p>
+    <div class="row">
+      <div style="flex: 1;">
+        <label for="reveal-choice">Voto revelado</label>
+        <input id="reveal-choice" type="number" min="1" placeholder="Mesmo valor usado no commit" />
+      </div>
+      <div style="flex: 2;">
+        <label for="reveal-salt">Salt</label>
+        <input id="reveal-salt" type="text" placeholder="Cole aqui o salt gerado na etapa de commit" />
+      </div>
+      <div>
+        <label>&nbsp;</label>
+        <button id="reveal-btn">Revelar</button>
+      </div>
+    </div>
+    <p id="reveal-status" class="status"></p>
+
+    <h2>Salt gerado</h2>
+    <div class="salt-box">
+      <div class="row">
+        <input id="salt-output" type="text" readonly placeholder="O salt aparecerá aqui após o commit" />
+        <button id="copy-salt-btn" class="secondary">Copiar salt</button>
+      </div>
+      <small>
+        Guarde esse valor. Na prática, o salt impede que outra pessoa reproduza seu commit sem conhecer esse segredo.
+      </small>
+    </div>
+
+    <h2>Consultar Tally</h2>
+    <div class="row">
+      <div style="flex: 1;">
+        <label for="tally-choice">Opção</label>
+        <input id="tally-choice" type="number" min="1" placeholder="Choice para consultar (ex.: 1)" />
+      </div>
+      <div>
+        <label>&nbsp;</label>
+        <button id="tally-btn" class="secondary">Ver tally</button>
+      </div>
+    </div>
+    <p id="tally-result" class="status"></p>
+
+    <h2>Resultados</h2>
+    <div class="row">
+      <button id="results-btn" class="secondary">Atualizar resultados</button>
+    </div>
+    <pre id="results-output"></pre>
+  </div>
+
+  <!-- ethers v6 pelo CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.13.2/ethers.umd.min.js" crossorigin="anonymous"></script>
+  <script>
+    const CONTRACT_ABI = [
+        "function commit(bytes32 commitment) external",
+        "function reveal(uint256 choice, bytes32 salt) external",
+        "function getPhase() public view returns (uint8)",
+        "function getTally(uint256 choice) external view returns (uint256)",
+        "function maxChoice() external view returns (uint256)",
+        "function getWinner() external view returns (uint256 winner, uint256 winnerTally, bool isTie)",
+        "function commitDeadline() external view returns (uint256)",
+        "function revealDeadline() external view returns (uint256)",
+
+        // getters gerados por mappings public
+        "function commitments(address user) view returns (bytes32)",
+        "function revealed(address user) view returns (bool)",
+
+        // eventos
+        "event Committed(address indexed user, bytes32 commitment)",
+        "event Revealed(address indexed user, uint256 choice)"
+    ];
+
+
+    const REVERT_MAP = {
+        "Commit phase over": "A fase de commit já acabou.",
+        "Reveal not started": "A fase de reveal ainda não começou.",
+        "Reveal phase over": "A fase de reveal já acabou.",
+        "Already committed": "Você já enviou um commit para esta votação com esta carteira.",
+        "Already revealed": "Você já revelou seu voto com esta carteira.",
+        "Invalid choice": "Opção inválida. Use um número entre 1 e o máximo configurado.",
+        "Invalid reveal": "O voto e o salt não correspondem ao commit feito anteriormente."
+    };
+
+    const ZERO_BYTES32 = "0x0000000000000000000000000000000000000000000000000000000000000000";
+
+    let provider, signer, contract, currentAccount;
+    let commitDeadlineSec = null;
+    let revealDeadlineSec = null;
+    let countdownInterval = null;
+    let blockListener = null;
+    let userCommitted = false;
+    let userRevealed = false;
+
+    function getReadableError(err) {
+        console.error("Erro detalhado:", err);
+
+        if (!err) {
+            return "Erro desconhecido. Veja o console para mais detalhes.";
+        }
+
+        // Usuário clicou em "rejeitar" na carteira (MetaMask costuma usar 4001)
+        if (err.code === "ACTION_REJECTED" || err.code === 4001) {
+            return "Transação cancelada na carteira. Nenhuma alteração foi feita.";
+        }
+
+        let raw = "";
+
+        // 1) Tentativas em ordem de "chance de ser texto útil"
+        if (typeof err.reason === "string" && err.reason.length > 0) {
+            raw = err.reason;
+        } else if (
+            err.revert &&
+            Array.isArray(err.revert.args) &&
+            typeof err.revert.args[0] === "string"
+        ) {
+            raw = err.revert.args[0];
+        } else if (typeof err.shortMessage === "string") {
+            raw = err.shortMessage;
+        } else if (err.info && err.info.error && typeof err.info.error.message === "string") {
+            raw = err.info.error.message;
+        } else if (err.error && typeof err.error.message === "string") {
+            raw = err.error.message;
+        } else if (typeof err.message === "string") {
+            raw = err.message;
+        } else if (typeof err === "string") {
+            raw = err;
+        }
+
+        // 2) Tenta mapear direto no REVERT_MAP
+        if (raw) {
+            for (const [key, friendly] of Object.entries(REVERT_MAP)) {
+            if (raw.includes(key)) {
+                return friendly;
+            }
+            }
+
+            // 3) Tenta extrair um "reason" de mensagens do tipo:
+            // "execution reverted: Already revealed"
+            // "reverted with reason string 'Already revealed'"
+            const m = raw.match(/["']([^"']+)["']$/);
+            if (m && REVERT_MAP[m[1]]) {
+            return REVERT_MAP[m[1]];
+            }
+        }
+
+        // 4) Mensagem um pouco mais específica para CALL_EXCEPTION
+        if (err.code === "CALL_EXCEPTION") {
+            return "A transação foi revertida pelo contrato. Verifique se a fase atual permite essa ação e se os dados estão corretos.";
+        }
+
+        // 5) fallback genérico
+        return "Ocorreu um erro ao enviar a transação. Veja o console para mais detalhes.";
+    }
+
+    function updateUIForState(phaseNum, hasCommitted, hasRevealed) {
+        const commitBtn = document.getElementById("commit-btn");
+        const revealBtn = document.getElementById("reveal-btn");
+        const commitStatus = document.getElementById("commit-status");
+        const revealStatus = document.getElementById("reveal-status");
+
+        commitBtn.disabled = false;
+        revealBtn.disabled = false;
+        commitStatus.className = "status";
+        revealStatus.className = "status";
+
+        if (phaseNum === 0n) { // Commit
+            commitBtn.disabled = hasCommitted;
+            revealBtn.disabled = true;
+
+            if (hasCommitted) {
+            commitStatus.innerText = "Você já realizou o commit com esta carteira.";
+            } else {
+            commitStatus.innerText = "";
+            }
+            revealStatus.innerText = "A fase de reveal ainda não começou.";
+        } else if (phaseNum === 1n) { // Reveal
+            commitBtn.disabled = true;
+            revealBtn.disabled = hasRevealed || !hasCommitted;
+
+            commitStatus.innerText = "A fase de commit já acabou.";
+
+            if (!hasCommitted) {
+            revealStatus.innerText =
+                "Você não fez commit com esta carteira; não há nada para revelar.";
+            } else if (hasRevealed) {
+            revealStatus.innerText = "Você já revelou seu voto.";
+            } else {
+            revealStatus.innerText = "";
+            }
+        } else { // Finished
+            commitBtn.disabled = true;
+            revealBtn.disabled = true;
+            commitStatus.innerText = "Votação encerrada.";
+            revealStatus.innerText = "Votação encerrada.";
+        }
+    }
+
+    async function updatePhase() {
+        if (!contract) return;
+
+        // sempre pega pelo contrato
+        const phaseNum = await contract.getPhase();
+        let phaseName = "";
+        if (phaseNum === 0n) phaseName = "Commit";
+        else if (phaseNum === 1n) phaseName = "Reveal";
+        else phaseName = "Finished";
+        document.getElementById("phase").innerText = "Fase: " + phaseName;
+
+        // se não tiver carteira conectada, só atualiza a fase e desabilita reveal
+        if (!currentAccount) {
+            updateUIForState(phaseNum, false, false);
+            return;
+        }
+
+        // lê estado do usuário na chain
+        const [commitment, revealedFlag] = await Promise.all([
+            contract.commitments(currentAccount),
+            contract.revealed(currentAccount)
+        ]);
+
+        userCommitted = commitment !== ZERO_BYTES32;
+        userRevealed = Boolean(revealedFlag);
+
+        updateUIForState(phaseNum, userCommitted, userRevealed);
+    }
+
+
+    async function connectWallet() {
+      if (!window.ethereum) {
+        alert("MetaMask não encontrada");
+        return;
+      }
+
+      await window.ethereum.request({ method: "eth_requestAccounts" });
+      provider = new ethers.BrowserProvider(window.ethereum);
+
+      const network = await provider.getNetwork();
+      if (network.chainId !== 11155111n) {
+        alert("Por favor, troque a rede da MetaMask para Sepolia antes de usar a aplicação.");
+        return;
+      }
+
+      signer = await provider.getSigner();
+      currentAccount = await signer.getAddress();
+      document.getElementById("account").innerText = "Conta: " + currentAccount;
+
+      // Só conecta carteira aqui; contrato é carregado via loadContract()
+    }
+
+    function getAddressFromInput() {
+      const input = document.getElementById("contract-address");
+      const raw = input.value.trim();
+      if (!raw) {
+        alert("Informe o endereço do contrato da votação.");
+        return null;
+      }
+      if (!ethers.isAddress(raw)) {
+        alert("Endereço de contrato inválido.");
+        return null;
+      }
+      return raw;
+    }
+
+    async function loadContract() {
+      if (!signer) {
+        alert("Conecte a carteira antes de carregar o contrato.");
+        return;
+      }
+
+      const addr = getAddressFromInput();
+      if (!addr) return;
+
+      try {
+        contract = new ethers.Contract(addr, CONTRACT_ABI, signer);
+        document.getElementById("contract-status").className = "status";
+        document.getElementById("contract-status").innerText =
+          "Contrato carregado: " + addr;
+
+        attachContractEventListeners();
+
+        // carrega deadlines + fase + countdown
+        await loadDeadlines();
+        await updatePhase();
+        await showResults();
+      } catch (e) {
+        console.error("Erro ao carregar contrato:", e);
+        const el = document.getElementById("contract-status");
+        el.className = "status error";
+        el.innerText = "Erro ao inicializar o contrato.";
+      }
+    }
+
+    async function loadDeadlines() {
+      if (!contract) return;
+      try {
+        const [c, r] = await Promise.all([
+          contract.commitDeadline(),
+          contract.revealDeadline()
+        ]);
+
+        commitDeadlineSec = Number(c);
+        revealDeadlineSec = Number(r);
+
+        // Se já houver um listener antigo de blocos, remove
+        if (blockListener && provider) {
+            provider.off("block", blockListener);
+        }
+
+        // Define listener de blocos
+        blockListener = async (blockNumber) => {
+            try {
+                const block = await provider.getBlock(blockNumber);
+                const nowSec = Number(block.timestamp);
+                updateCountdownWithChainTime(nowSec);
+            } catch (e) {
+                console.error("Erro ao buscar bloco:", e);
+            }
+        };
+
+        provider.on("block", blockListener);
+
+        const latestBlock = await provider.getBlock("latest");
+        updateCountdownWithChainTime(Number(latestBlock.timestamp));
+      } catch (e) {
+        console.error("Erro ao carregar deadlines:", e);
+      }
+    }
+    
+    function updateCountdownWithChainTime(nowSec) {
+        if (!commitDeadlineSec || !revealDeadlineSec) return;
+        const countdownEl = document.getElementById("countdown");
+
+        if (nowSec < commitDeadlineSec) {
+            const remaining = commitDeadlineSec - nowSec;
+            countdownEl.textContent =
+            `Fase de Commit — termina em ${formatRemaining(remaining)}`;
+        } else if (nowSec < revealDeadlineSec) {
+            const remaining = revealDeadlineSec - nowSec;
+            countdownEl.textContent =
+            `Fase de Reveal — termina em ${formatRemaining(remaining)}`;
+        } else {
+            countdownEl.textContent = `Votação encerrada`;
+        }
+    }
+
+    function attachContractEventListeners() {
+        if (!contract) return;
+
+        // Evita duplicar listeners se o usuário recarregar o contrato
+        contract.removeAllListeners("Committed");
+        contract.removeAllListeners("Revealed");
+
+        const handler = async (...args) => {
+            console.log("Evento do contrato:", args);
+            try {
+            // Atualiza texto da fase
+            await updatePhase();
+            // Recalcula e escreve os resultados na caixa
+            await showResults();
+            } catch (e) {
+            console.error("Erro ao reagir a evento do contrato:", e);
+            }
+        };
+
+        contract.on("Committed", handler);
+        contract.on("Revealed", handler);
+    }
+
+
+    async function updatePhase() {
+      if (!contract) return;
+      const phaseNum = await contract.getPhase();
+      let phaseName = "";
+      if (phaseNum === 0n) phaseName = "Commit";
+      else if (phaseNum === 1n) phaseName = "Reveal";
+      else phaseName = "Finished";
+      document.getElementById("phase").innerText = "Fase: " + phaseName;
+    }
+
+    function generateSalt() {
+      const array = new Uint8Array(32);
+      window.crypto.getRandomValues(array);
+      return "0x" + Array.from(array).map(b => b.toString(16).padStart(2, "0")).join("");
+    }
+
+    async function doCommit() {
+        if (!contract) return alert("Carregue um contrato antes de enviar o commit.");
+        if (!currentAccount) return alert("Conecte a carteira antes de enviar o commit.");
+
+        const choiceStr = document.getElementById("commit-choice").value;
+        if (!choiceStr) return alert("Preencha um número para o voto.");
+
+        const choice = BigInt(choiceStr);
+        const statusEl = document.getElementById("commit-status");
+
+        try {
+            // 1) checa fase e estado atual na chain pra evitar revert
+            const [phaseNum, commitment] = await Promise.all([
+            contract.getPhase(),
+            contract.commitments(currentAccount)
+            ]);
+
+            if (phaseNum !== 0n) {
+            statusEl.className = "status error";
+            statusEl.innerText = "Não é mais fase de commit.";
+            await updatePhase();
+            return;
+            }
+
+            if (commitment !== ZERO_BYTES32) {
+            statusEl.className = "status error";
+            statusEl.innerText = "Você já realizou o commit com esta carteira.";
+            await updatePhase();
+            return;
+            }
+
+            // 2) gera salt e commitment
+            const salt = generateSalt();
+            console.log("Seu choice:", choice.toString());
+            console.log("Seu salt:", salt);
+
+            const saltField = document.getElementById("salt-output");
+            saltField.value = salt;
+            saltField.classList.add("highlight");
+            setTimeout(() => saltField.classList.remove("highlight"), 1500);
+
+            const commitmentHash = ethers.solidityPackedKeccak256(
+            ["uint256", "bytes32", "address"],
+            [choice, salt, currentAccount]
+            );
+
+            // 3) envia transação
+            statusEl.className = "status";
+            statusEl.innerText = "Enviando transação de commit...";
+
+            const tx = await contract.commit(commitmentHash);
+            await tx.wait();
+
+            statusEl.classList.add("success");
+            statusEl.innerText = "Commit confirmado na blockchain.";
+
+            // 4) atualiza fase/estado na UI
+            await updatePhase();
+        } catch (err) {
+            const human = getReadableError(err);
+            statusEl.className = "status error";
+            statusEl.innerText = human;
+        }
+    }
+
+    async function doReveal() {
+        if (!contract) return alert("Carregue um contrato antes de fazer o reveal.");
+        if (!currentAccount) return alert("Conecte a carteira antes de fazer o reveal.");
+
+        const choiceStr = document.getElementById("reveal-choice").value;
+        const salt = document.getElementById("reveal-salt").value;
+        if (!choiceStr || !salt) return alert("Preencha o voto e o salt.");
+
+        const choice = BigInt(choiceStr);
+        const statusEl = document.getElementById("reveal-status");
+
+        try {
+            // 1) checa fase + estado do usuário pra evitar revert
+            const [phaseNum, commitment, alreadyRevealed] = await Promise.all([
+            contract.getPhase(),
+            contract.commitments(currentAccount),
+            contract.revealed(currentAccount)
+            ]);
+
+            if (phaseNum !== 1n) {
+            statusEl.className = "status error";
+            statusEl.innerText = "Não é fase de reveal no momento.";
+            await updatePhase();
+            return;
+            }
+
+            if (commitment === ZERO_BYTES32) {
+            statusEl.className = "status error";
+            statusEl.innerText =
+                "Você não fez commit com esta carteira; não há nada para revelar.";
+            await updatePhase();
+            return;
+            }
+
+            if (alreadyRevealed) {
+            statusEl.className = "status error";
+            statusEl.innerText = "Você já revelou seu voto.";
+            await updatePhase();
+            return;
+            }
+
+            // 2) envia transação
+            statusEl.className = "status";
+            statusEl.innerText = "Enviando transação de reveal...";
+
+            const tx = await contract.reveal(choice, salt);
+            await tx.wait();
+
+            statusEl.classList.add("success");
+            statusEl.innerText = "Reveal confirmado na blockchain.";
+
+            // 3) atualiza fase/estado na UI
+            await updatePhase();
+        } catch (err) {
+            const human = getReadableError(err);
+            statusEl.className = "status error";
+            statusEl.innerText = human;
+        }
+    }
+
+
+    async function checkTally() {
+      if (!contract) return alert("Carregue um contrato antes de consultar o tally.");
+      const choiceStr = document.getElementById("tally-choice").value;
+      if (!choiceStr) return alert("Preencha o choice para consultar.");
+      const choice = BigInt(choiceStr);
+
+      try {
+        const result = await contract.getTally(choice);
+        const el = document.getElementById("tally-result");
+        el.className = "status";
+        el.innerText = "Tally: " + result.toString();
+      } catch (err) {
+        console.error(err);
+        const el = document.getElementById("tally-result");
+        el.className = "status error";
+        el.innerText = "Erro ao ler tally: " + (err.message || err);
+      }
+    }
+
+    async function showResults() {
+        if (!contract) return alert("Carregue um contrato antes de consultar os resultados.");
+
+        let text = "";
+
+        const phaseNum = await contract.getPhase();
+        let phaseName = "";
+        if (phaseNum === 0n) phaseName = "Commit";
+        else if (phaseNum === 1n) phaseName = "Reveal";
+        else phaseName = "Finished";
+        text += `Fase atual: ${phaseName}\n\n`;
+
+        const max = Number(await contract.maxChoice());
+
+        text += "Votos por opção:\n";
+        const tallies = []; // vamos guardar pra analisar empate
+        for (let c = 1; c <= max; c++) {
+            const votes = await contract.getTally(c);
+            const votesNum = Number(votes);
+            tallies.push({ choice: c, votes: votesNum });
+            text += `  Opção ${c}: ${votes.toString()} voto(s)\n`;
+        }
+
+        if (phaseNum === 2n) {
+            try {
+            const [winner, winnerTally, isTie] = await contract.getWinner();
+            const winnerNum = Number(winner);
+            const winnerTallyNum = Number(winnerTally);
+
+            if (winnerTallyNum === 0) {
+                text += "\nNenhum voto registrado na votação.\n";
+            } else if (!isTie) {
+                text += `\nVencedor: opção ${winnerNum} com ${winnerTallyNum} voto(s)\n`;
+            } else {
+                // encontra todos que têm o mesmo número de votos do vencedor
+                const empatadas = tallies
+                .filter(t => t.votes === winnerTallyNum)
+                .map(t => t.choice);
+
+                text += `\nEmpate entre as opções ${empatadas.join(", ")} ` +
+                        `com ${winnerTallyNum} voto(s) cada.\n`;
+                text += `Pela regra do contrato, a opção ${winnerNum} ` +
+                        `é considerada a vencedora canônica.\n`;
+            }
+            } catch (e) {
+            console.warn("Erro ao chamar getWinner:", e);
+            text += "\nErro ao calcular o vencedor.\n";
+            }
+        } else {
+            text += "\n(Resultado parcial — a fase de revelação ainda não terminou.)\n";
+        }
+
+        try {
+            const filter = contract.filters.Revealed();
+            const events = await contract.queryFilter(filter, 0, "latest");
+
+            if (events.length > 0) {
+            text += "\nRevelações registradas (carteira → opção):\n";
+            for (const ev of events) {
+                const voter = ev.args.user;
+                const choice = ev.args.choice;
+                text += `  - ${voter} votou na opção ${choice.toString()}\n`;
+            }
+            } else {
+            text += "\nNenhuma revelação registrada ainda.\n";
+            }
+        } catch (e) {
+            console.error("Erro ao buscar eventos Revealed:", e);
+            text += "\nErro ao buscar eventos Revealed.\n";
+        }
+
+        document.getElementById("results-output").innerText = text;
+    }
+
+    async function copySalt() {
+      const saltField = document.getElementById("salt-output");
+      const value = saltField.value.trim();
+      if (!value) {
+        alert("Ainda não há nenhum salt gerado.");
+        return;
+      }
+
+      try {
+        await navigator.clipboard.writeText(value);
+        saltField.classList.add("highlight");
+        setTimeout(() => saltField.classList.remove("highlight"), 1500);
+      } catch (e) {
+        console.error("Erro ao copiar salt:", e);
+        alert("Não foi possível copiar automaticamente. Copie manualmente o texto do campo.");
+      }
+    }
+
+    document.getElementById("connect-btn").onclick = connectWallet;
+    document.getElementById("load-contract-btn").onclick = loadContract;
+    document.getElementById("commit-btn").onclick = doCommit;
+    document.getElementById("reveal-btn").onclick = doReveal;
+    document.getElementById("tally-btn").onclick = checkTally;
+    document.getElementById("results-btn").onclick = showResults;
+    document.getElementById("copy-salt-btn").onclick = copySalt;
+
+    if (window.ethereum) {
+      window.ethereum.on("chainChanged", () => window.location.reload());
+      window.ethereum.on("accountsChanged", () => window.location.reload());
+    }
+  </script>
+</body>
+</html>
